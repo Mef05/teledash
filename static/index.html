@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teledash Live</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Smooth transition for sidebar */
+        #sidebar {
+            transition: width 0.3s ease-in-out, opacity 0.3s ease-in-out;
+        }
+        .sidebar-collapsed {
+            width: 0 !important;
+            opacity: 0;
+            overflow: hidden;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            border-right: none !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white h-screen overflow-hidden flex flex-col">
+    <!-- Header -->
+    <header class="bg-gray-800 border-b border-gray-700 p-4 flex items-center justify-between shrink-0">
+        <div class="flex items-center space-x-4">
+            <button id="toggle-sidebar" class="p-2 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors" title="Toggle Sidebar">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            </button>
+            <h1 class="text-2xl font-bold text-blue-400">Teledash Live</h1>
+        </div>
+        <div class="flex items-center space-x-4">
+            <span class="text-sm text-gray-400 font-mono" id="packet-count">0 packets</span>
+            <span id="connection-status" class="px-3 py-1 rounded-full text-sm font-semibold bg-red-500/20 text-red-400 border border-red-500/30">Disconnected</span>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <div class="flex flex-1 overflow-hidden">
+        
+        <!-- Sidebar -->
+        <aside id="sidebar" class="w-[450px] bg-gray-800 border-r border-gray-700 flex flex-col shrink-0">
+            <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+                <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Active Sensors</h2>
+            </div>
+            <div id="sensor-list" class="flex-1 overflow-y-auto p-3 space-y-3">
+                <!-- Unique sensors with their latest data will appear here -->
+            </div>
+        </aside>
+
+        <!-- Data View (Currently Empty) -->
+        <main class="flex-1 flex items-center justify-center bg-gray-900 relative">
+            <div class="text-gray-600 text-lg">
+                <!-- Center is left empty for now -->
+                Select a sensor from the sidebar to view details (Coming soon)
+            </div>
+        </main>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>
