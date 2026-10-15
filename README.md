@@ -1,35 +1,71 @@
 # TeleDash
 
-A modular desktop utility for 3D visualization, realtime telemetry, and sensor simulation for embedded systems. Built entirely in Rust, focusing on low-latency, non-blocking I/O, and a heavily decoupled architecture.
+Real-time telemetry for embedded systems, written in Rust. A board streams binary sensor packets over TCP (for example through a TCP-UART bridge); TeleDash parses the stream and pushes every packet live to a browser dashboard over WebSockets.
 
-## Project Goal
-To provide a robust, highly-performant software architecture where embedded hardware can stream raw data (over TCP-UART bridges, USB-Serial, or UDP) to a host machine. The host application parses this binary stream, extracts telemetry data, and visualizes it in real-time using fast plots and 3D models (e.g., for IMU / Quaternion data).
+```
+embedded board / simulator ──TCP──▶ network thread (mio / epoll)
+                                         │  framing parser
+                                         ▼
+                              tokio broadcast channel
+                                         │
+                                         ▼
+                        Axum server ──WebSocket──▶ browser dashboard
+```
 
-## Architecture & Milestones
+## How it works
 
-The project is being built progressively in isolated architectural layers:
+**Transport (`src/transport`)**
+- A dedicated thread runs a non-blocking `mio` (epoll) event loop and reads from the source.
+- Sources sit behind a `DataSource` trait (`connect`, `register`, `read_bytes`, `write_bytes`), so a new transport does not touch the parser or the server. Implemented today: `TcpUartSource`.
+- `WouldBlock` is handled as "no data yet"; a closed or failed connection is reported as a `TransportError` and the thread reconnects every 2 seconds.
 
-### Completed
-* **Milestone 1: Transport Layer** 
-  * Implemented non-blocking network I/O using the `mio` epoll event loop.
-  * `DataSource` trait abstraction for decoupled transport (currently implemented: `TcpUartSource`).
-  * Robust error handling and non-blocking socket management (`WouldBlock` handling).
-* **Milestone 2: Parser & Protocol Layer** 
-  * Binary framing implementation using a Magic Bytes state machine (`0xAA 0xBB`).
-  * Seamless handling of packet fragmentation and network delays.
-  * Checksum validation (XOR).
-  * Fully unit tested for single, fragmented, and chained/multiple packets.
+**Protocol (`src/protocol`)**
+- Frame layout:
 
-### Upcoming
-* **Milestone 3: Presentation Layer (GUI)**
-  * Integrate `egui` (Immediate Mode GUI) for real-time data visualization.
-  * Multi-threaded architecture using `mpsc` channels to completely decouple the `mio` network loop from the GUI rendering loop.
-* **Milestone 4: 3D Visualization**
-  * Real-time 3D model rendering for spatial orientation (Euler angles / Quaternions).
-* **Milestone 5: Sensor Simulation Engine**
-  * A local dummy source to generate synthetic sensor data, allowing GUI and Parser testing without physical embedded hardware.
-* **Milestone 6: Plugin & Custom Sensor Registry**
-  * Extensible architecture for dynamically registering new binary formats and custom sensor payload parsers.
+  | Magic | Length | Sensor ID | Payload | Checksum |
+  |---|---|---|---|---|
+  | `0xAA 0xBB` | 1 byte (N) | 1 byte | N bytes | 1 byte, XOR of all previous bytes |
 
-## Getting Started
-*(Instructions will be added once the GUI layer is merged)*
+- `SimpleParser` buffers incoming bytes, skips to the next magic sequence, waits until a full frame has arrived, and drops the magic bytes to resync when a checksum fails.
+- It handles a frame split across several reads and several frames arriving in one read.
+
+**Server and dashboard (`src/main.rs`, `static/`)**
+- Parsed packets go into a `tokio::sync::broadcast` channel (capacity 1000).
+- An Axum server serves the dashboard and a `/ws` endpoint; each WebSocket client gets its own receiver, so one slow client skips lagged packets instead of blocking ingestion or the other clients.
+- The dashboard shows connection status, a packet counter and one live card per sensor ID with its latest payload and timestamp. It reconnects automatically if the server restarts.
+
+**Simulator (`simulator/sim_sensor.py`)**
+- A TCP server that impersonates a board with four sensors: temperature (1 byte), battery (float32), GPS (2 x float32) and IMU pitch/roll/yaw (3 x float32).
+- The IMU packet is deliberately sent in two halves, to exercise fragment reassembly over a real socket.
+
+## Running it
+
+Requires Rust (edition 2024) and Python 3.
+
+```bash
+# terminal 1: start the simulated board on 127.0.0.1:15113
+python3 simulator/sim_sensor.py
+
+# terminal 2: start TeleDash from the repository root (the dashboard is served from ./static)
+cargo run
+```
+
+Then open http://localhost:3000.
+
+## Tests
+
+```bash
+cargo test
+```
+
+Parser unit tests cover a single complete frame, a frame split across two reads, and two frames delivered in one buffer.
+
+## Roadmap
+
+- [x] Non-blocking TCP transport with reconnect
+- [x] Binary framing parser with checksum validation and unit tests
+- [x] WebSocket server and live browser dashboard
+- [x] Python sensor simulator
+- [ ] Sensor presets loaded from JSON (name, data type, endianness, unit) to show decoded values instead of raw hex
+- [ ] Live plots and a 3D orientation view for IMU data
+- [ ] More transports: USB-serial and UDP
