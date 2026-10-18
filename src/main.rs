@@ -1,6 +1,7 @@
 mod error;
 mod protocol;
 mod transport;
+mod decoders;
 
 use axum::{
     extract::{
@@ -31,7 +32,7 @@ struct AppState {
 async fn main() {
     // Increase channel size to handle high-frequency telemetry
     let (tx, _rx) = broadcast::channel::<TelemtryPacket>(1000);
-    
+
     let state = AppState { tx: tx.clone() };
 
     // Background network thread with automatic reconnect logic
@@ -44,7 +45,7 @@ async fn main() {
         loop {
             println!("Attempting to connect to TCP UART at {}...", SERVER_ADDR);
             let mut source = TcpUartSource::new(addr);
-            
+
             // Try to connect, if it fails immediately, wait and retry
             if let Err(e) = source.connect() {
                 eprintln!("Failed to connect: {:?}. Retrying in 2 seconds...", e);
@@ -60,7 +61,7 @@ async fn main() {
             }
 
             println!("Connected to TCP UART source!");
-            
+
             let mut connection_alive = true;
             while connection_alive {
                 if let Err(e) = poll.poll(&mut events, Some(Duration::from_millis(500))) {
@@ -87,7 +88,7 @@ async fn main() {
                     }
                 }
             }
-            
+
             // We broke out of the reading loop due to a connection error
             println!("Connection lost. Reconnecting in 2 seconds...");
             thread::sleep(Duration::from_secs(2));

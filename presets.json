@@ -1,0 +1,45 @@
+[
+  {
+    "id": 42,
+    "name": "Temperature",
+    "fields": [
+      { "name": "temp", "data_type": "u8", "endian": "little", "unit": "°C" }
+    ]
+  },
+  {
+    "id": 50,
+    "name": "Battery",
+    "fields": [
+      { "name": "level", "data_type": "f32", "endian": "little", "unit": "%" }
+    ]
+  },
+  {
+    "id": 60,
+    "name": "GPS",
+    "fields": [
+      { "name": "lat", "data_type": "f32", "endian": "little", "unit": "°" },
+      { "name": "lon", "data_type": "f32", "endian": "little", "unit": "°" }
+    ]
+  },
+  {
+    "id": 10,
+    "name": "IMU",
+    "fields": [
+      { "name": "pitch", "data_type": "f32", "endian": "little", "unit": "°" },
+      { "name": "roll", "data_type": "f32", "endian": "little", "unit": "°" },
+      { "name": "yaw", "data_type": "f32", "endian": "little", "unit": "°" }
+    ]
+  },
+  {
+    "id": 70,
+    "name": "Pixy2 Line",
+    "fields": [
+      { "name": "x0", "data_type": "u8", "endian": "little", "unit": "px" },
+      { "name": "y0", "data_type": "u8", "endian": "little", "unit": "px" },
+      { "name": "x1", "data_type": "u8", "endian": "little", "unit": "px" },
+      { "name": "y1", "data_type": "u8", "endian": "little", "unit": "px" },
+      { "name": "index", "data_type": "u8", "endian": "little", "unit": null },
+      { "name": "flags", "data_type": "u8", "endian": "little", "unit": null }
+    ]
+  }
+]
