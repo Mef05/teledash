@@ -3,7 +3,7 @@ use std::fs::{read_to_string, write};
 use std::io::ErrorKind;
 use std::sync::Arc;
 
-use arc_swap::ArcSwap;
+use arc_swap::{ArcSwap, Guard};
 
 use crate::error::ParsingError;
 
@@ -57,6 +57,10 @@ impl PresetManager {
         let map = Arc::new(map);
         self.presets.store(Arc::clone(&map));
         Ok(map)
+    }
+
+    pub fn get_presets(&self) -> Guard<Arc<HashMap<u8, SensorPerset>>>{
+        self.presets.load()
     }
 }
 
@@ -191,6 +195,50 @@ mod tests {
         };
         assert_eq!(presets.len(), 1);
         assert!(!presets.contains_key(&3u8));
+
+        let _ = fs::remove_file(&path);
+    }
+
+    // The two reload tests look inside the box through get_presets(), so they test it too.
+
+    #[test]
+    fn failed_reload_keeps_old_presets() {
+        let good = r#"[
+            { "id": 1, "name": "original", "fields": [ { "name": "a", "data_type": "u8", "endian": "little", "unit": null } ] }
+        ]"#;
+        let (manager, path) = manager_with_file("failed_reload", good);
+        assert!(manager.load_presets().is_ok(), "first load should succeed");
+
+        // Someone saves a broken file, then the app reloads.
+        fs::write(&path, r#"[ { "id": 2, "name": "#).unwrap();
+        assert!(manager.load_presets().is_err(), "broken file should be reported as an error");
+
+        let current = manager.get_presets();
+        assert_eq!(current.len(), 1, "old presets should still be in place");
+        assert_eq!(current[&1u8].name, "original");
+
+        let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn successful_reload_replaces_presets() {
+        let first = r#"[
+            { "id": 1, "name": "old", "fields": [ { "name": "a", "data_type": "u8", "endian": "little", "unit": null } ] }
+        ]"#;
+        let (manager, path) = manager_with_file("successful_reload", first);
+        assert!(manager.load_presets().is_ok(), "first load should succeed");
+
+        // The file is edited to contain a different sensor, then the app reloads.
+        let second = r#"[
+            { "id": 2, "name": "new", "fields": [ { "name": "b", "data_type": "f32", "endian": "big", "unit": "V" } ] }
+        ]"#;
+        fs::write(&path, second).unwrap();
+        assert!(manager.load_presets().is_ok(), "second load should succeed");
+
+        let current = manager.get_presets();
+        assert_eq!(current.len(), 1);
+        assert!(!current.contains_key(&1u8), "old preset should be gone");
+        assert_eq!(current[&2u8].name, "new");
 
         let _ = fs::remove_file(&path);
     }
